@@ -9,6 +9,7 @@ const bucketUtils = require('./lib/bucketUtils');
 const configure = require('./lib/configure');
 const regionUrls = require('./lib/resources/awsRegionUrls');
 const uploadDirectory = require('./lib/upload');
+const compressFolder = require('./lib/compress');
 const validateClient = require('./lib/validate');
 
 class Client {
@@ -130,7 +131,8 @@ class Client {
       keyPrefix,
       sse,
       routingRules,
-      manageResources;
+      manageResources,
+      zipLambda;
 
     return this._validateConfig()
       .then(() => {
@@ -153,6 +155,7 @@ class Client {
         bucketName = this.options.bucketName;
         keyPrefix = this.options.keyPrefix;
         sse = this.options.sse || null;
+        zipLambda = this.options.zipLambda || false;
         manageResources = this.options.manageResources;
         headerSpec = this.options.objectHeaders;
         orderSpec = this.options.uploadOrder;
@@ -243,6 +246,15 @@ class Client {
               }
               this.serverless.cli.log(`Configuring CORS for bucket...`);
               return configure.configureCorsForBucket(this.aws, bucketName);
+            })
+            .then(() => {
+              if (zipLambda) {
+                clientPath = compressFolder(clientPath).then(path => {
+                  clientPath = path;
+                });
+                return clientPath;
+              }
+              return Promise.resolve();
             })
             .then(() => {
               this.serverless.cli.log(`Uploading client files to bucket...`);

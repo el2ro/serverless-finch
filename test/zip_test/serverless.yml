@@ -1,0 +1,46 @@
+service: test-finch
+
+# Usage
+# store some files into client/dist/
+# run commands
+# - sls client deploy
+# - sls deploy
+# - sls invoke -f hello
+
+plugins:
+  - serverless-finch
+
+custom:
+  client:
+    bucketName: flinch-s3-test-bucket # (see Configuration Parameters below)
+    zipLambda: true # or true if uploading archive.zip
+  s3ImageBucketArn: arn:aws:s3:::${self:custom.client.bucketName}
+
+provider:
+  name: aws
+  # TODO update profile to match yours test environment
+  profile: serverless-test-profile
+  runtime: python3.8
+  region: eu-west-2
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - 's3:GetObject'
+        - 's3:PutObject*'
+        - 's3:ListBucket'
+      Resource: '${self:custom.s3ImageBucketArn}/*'
+
+functions:
+  hello:
+    handler: handler.hello
+    timeout: 90
+    events:
+      - s3:
+        bucket: flinch-s3-test-bucket
+        event: s3:ObjectCreated:*
+        rules:
+          - suffix: .zip
+        existing: true
+package:
+  exclude:
+    - client/**
